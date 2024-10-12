@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical #-}
 
-module Base {P : Set} where
+module Base where
 
   open import Cubical.Foundations.Prelude
 
@@ -10,33 +10,28 @@ module Base {P : Set} where
 
   data _⊣_ : Typ → Context → Set
 
+  open Sub {_⊣_}
+
   private variable
     Γ Γ' Δ Δ' Θ Θ' : Context
     A B C : Typ
     t t' u u' v v' : A ⊣ Γ
 
   data Typ where
-    ℙ : Typ
     𝟙 : Typ
     _⊸_ : Typ → Typ → Typ
     _⊗_ : Typ → Typ → Typ
     trunc : isSet Typ
 
   data _⊣_ where
-    ex : A ⊣ (B , C , Γ)
-       → A ⊣ (C , B , Γ)
     var : A ⊣ (A , ε)
-
-    p : P → ℙ ⊣ (ℙ , ε)
     
-    T : 𝟙 ⊣ (𝟙 , ε)
+    ⊤ : 𝟙 ⊣ ε
     
     abs : B ⊣ (A , Γ)
         → (A ⊸ B) ⊣ Γ
     app : (A ⊸ B) ⊣ Γ → A ⊣ Δ
         → B ⊣ (Γ ++ Δ)
-    --app : (A ⊸ B) ⊣ Γ
-    --    → B ⊣ (A , Γ)
 
     pair : A ⊣ Γ → B ⊣ Δ
          → (A ⊗ B) ⊣ (Γ ++ Δ)
@@ -47,5 +42,8 @@ module Base {P : Set} where
   --modus-ponens = abs (abs (app var var))
 
   -- Problem: Wie kriegen wir ex heraus?
-  swap : ((A ⊗ B) ⊸ (B ⊗ A)) ⊣ ε
-  swap = abs (split var (ex (pair var var)))
+  flip : ((A ⊗ B) ⊸ (B ⊗ A)) ⊣ ε
+  flip {A} {B} = abs (split var (rename (pair (var {A = B}) (var {A = A})) swap))
+
+  norm : (𝟙 ⊗ (𝟙 ⊸ 𝟙)) ⊣ ε
+  norm = app flip (pair (abs var) ⊤)
