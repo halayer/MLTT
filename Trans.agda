@@ -9,11 +9,17 @@ module Trans {Typ : Set} where
     renaming (idfun to id)
   open import Cubical.Foundations.Isomorphism using (Iso; isoToEquiv)
   open import Cubical.Foundations.Univalence using (ua)
+  open import Cubical.Data.Empty using () renaming (⊥ to Empty)
   open import Cubical.Data.Unit using (Unit; tt)
+  open import Cubical.Data.Nat using (ℕ; zero; suc; _+_)
+  open import Cubical.Data.Nat.Order using
+    (_<_; zero-≤; suc-≤-suc; ¬-<-zero; pred-≤-pred)
+  open import Cubical.Data.Fin using (Fin)
   open import Cubical.Data.Prod using (_×_; ×≡)
     renaming (_,_ to _×,_)
+  open import Cubical.Data.Sigma using (fst; snd)
   --open import Cubical.Data.Sigma using (∃-syntax)
-  open import Cubical.HITs.PropositionalTruncation using (∣_∣₁)
+  --open import Cubical.HITs.PropositionalTruncation using (∣_∣₁)
 
   _∘_ : ∀ {𝓁 𝓁' 𝓁''} {A : Set 𝓁} {B : Set 𝓁'} {C : Set 𝓁''}
       → (B → C) → (A → B) → (A → C)
@@ -31,6 +37,11 @@ module Trans {Typ : Set} where
     swap : (A , (B , Γ)) ≡ (B , (A , Γ))
     --trunc : isSet Context
 
+  len : Context → ℕ
+  len ε = zero
+  len (_ , Γ) = suc (len Γ)
+  len (swap {Γ = Γ} i) = cong {x = len Γ} (λ n → suc (suc n)) refl i
+
   _++_ : Context → Context → Context
   ε ++ Δ = Δ
   (A , Γ) ++ Δ = A , (Γ ++ Δ)
@@ -41,12 +52,41 @@ module Trans {Typ : Set} where
     e0 : A ∈ (A , Γ)
     eS : A ∈ Γ → A ∈ (B , Γ)
 
-  ∈-ind : {C : Set} → A ∈ Γ
-        → (Σ[ Δ ∈ Context ] (Γ ≡ (A , Δ)) → C)
-        → (∀ {Δ} → A ∈ Δ → C)
-        → C
-  ∈-ind (e0 {Γ = Γ}) c f = c (Γ ×, refl)
-  ∈-ind (eS e) c f = f e
+  private
+
+    +0≡ : ∀ {n} → n + 0 ≡ n
+    +0≡ {zero} = refl
+    +0≡ {suc n} = cong suc +0≡
+
+    +1↔suc : ∀ {n} → n + 1 ≡ suc n
+    +1↔suc {zero} = refl
+    +1↔suc {suc n} = cong suc +1↔suc
+
+    +suc↔suc : ∀ {m n} → m + suc n ≡ suc (m + n)
+    +suc↔suc {zero} = refl
+    +suc↔suc {suc m} = cong suc +suc↔suc
+
+    0≤n : ∀ {n} → zero < suc n
+    0≤n {zero} = zero ×, refl
+    0≤n {suc n} = suc n ×, cong suc (+suc↔suc {m = n} {n = 0} ∙ cong suc +0≡)
+
+    lookup : (Γ : Context) → Fin (len Γ) → Typ
+    lookup ε (_ ×, p) with ¬-<-zero p
+    ...                  | ()
+    lookup (A , Γ) (zero ×, p) = A
+    lookup (A , Γ) (suc n ×, p) = lookup Γ (n ×, pred-≤-pred p)
+    lookup (swap i) (fst₁ ×, snd₁) = {!!} -- Nicht möglich, solange swap enthalten!
+
+    ∈↔ℕ : Iso (A ∈ Γ) (Fin (len Γ))
+    ∈↔ℕ .Iso.fun e0 = zero ×, 0≤n
+    ∈↔ℕ .Iso.fun (eS e) = helper {e = e} where
+      helper : {e : A ∈ Γ} → Fin (suc (len Γ))
+      helper {e = e0} = zero ×, suc-≤-suc zero-≤
+      helper {e = eS e} = suc (fst (helper {e = e})) ×, suc-≤-suc (snd (helper {e = e}))
+    ∈↔ℕ .Iso.inv (zero ×, p) = {!!}
+    ∈↔ℕ .Iso.inv (suc n ×, p) = {!!}
+    ∈↔ℕ .Iso.rightInv = {!!}
+    ∈↔ℕ .Iso.leftInv = {!!}
 
   _↝_ : Context → Context → Set
   Γ ↝ Δ = Γ ≡ Δ
@@ -65,40 +105,13 @@ module Trans {Typ : Set} where
     rename : A ⊣ Γ → Γ ↝ Δ → A ⊣ Δ
     rename {A = A} t r = transport (λ i → A ⊣ r i) t
 
-    private
-
-      ×-commᵢ : {A B : Set} → Iso (A × B) (B × A)
-      ×-commᵢ .Iso.fun (a ×, b) = (b ×, a)
-      ×-commᵢ .Iso.inv (a ×, b) = (b ×, a)
-      ×-commᵢ .Iso.rightInv (a ×, b) = refl
-      ×-commᵢ .Iso.leftInv (a ×, b) = refl
-
-      ×-assocᵢ : {A B C : Set} → Iso (A × B × C) ((A × B) × C)
-      ×-assocᵢ .Iso.fun (a ×, (b ×, c)) = ((a ×, b) ×, c)
-      ×-assocᵢ .Iso.inv ((a ×, b) ×, c) = (a ×, (b ×, c))
-      ×-assocᵢ .Iso.rightInv ((a ×, b) ×, c) = refl
-      ×-assocᵢ .Iso.leftInv (a ×, (b ×, c)) = refl
-
-      Σ-commᵢ : {A : Set} {B : A → Set} {B' : A → Set} {C : A → A → Set}
-               → Iso (Σ[ a ∈ A ] (B a × (Σ[ a' ∈ A ] (B' a' × C a a'))))
-                     (Σ[ a' ∈ A ] (B' a' × (Σ[ a ∈ A ] (B a × C a a'))))
-      Σ-commᵢ .Iso.fun (a ×, ba ×, a' ×, ba' ×, c) = a' ×, (ba' ×, (a ×, (ba ×, c)))
-      Σ-commᵢ .Iso.inv (a' ×, ba' ×, a ×, ba ×, c) = a ×, (ba ×, (a' ×, (ba' ×, c)))
-      Σ-commᵢ .Iso.rightInv (a ×, ba ×, a' ×, ba' ×, c) = refl
-      Σ-commᵢ .Iso.leftInv (a' ×, ba' ×, a ×, ba ×, c) = refl
-
     _~>_ : Context → Context → Set
-    ε ~> Δ = Unit
-    (A , Γ) ~> Δ = Σ[ Δ' ∈ Context ] (A ⊣ Δ') × Γ ~> (Δ' ++ Δ)
-    swap {A = A} {B = B} {Γ = Γ} i ~> Δ =
-      (ua (isoToEquiv (Σ-commᵢ {A = Context}
-                               {B = λ Δ → A ⊣ Δ} {B' = λ Δ → B ⊣ Δ}
-                               {C = λ Δ' Δ'' → Γ ~> (Δ'' ++ (Δ' ++ Δ))}))) i
+    Γ ~> Δ = ∀ {A} → A ∈ Γ → A ⊣ Δ
 
     ~>-refl : Γ ~> Γ
-    ~>-refl {ε} = tt
-    ~>-refl {A , Γ} = (A , ε) ×, var ×, (~>-refl {Γ = Γ})
-    ~>-refl {swap i} = {!!}
+    ~>-refl {ε} e = {!!}
+    ~>-refl {A , Γ} e = {!!}
+    ~>-refl {swap i} e = {!!}
 
     ⟨_⟩ : A ⊣ ε → (A , Γ) ~> Γ
-    ⟨_⟩ {Γ = Γ} t = ε ×, t ×, ~>-refl {Γ = Γ}
+    ⟨_⟩ {Γ = Γ} t = {!!}
