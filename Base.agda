@@ -1,16 +1,12 @@
-{-# OPTIONS --cubical #-}
-
 module Base where
 
-  open import Cubical.Foundations.Prelude
+  open import Data.Product using (_×_)
 
   data Typ : Set
 
   open import Trans {Typ}
 
   data _⊣_ : Typ → Context → Set
-
-  open Sub {_⊣_}
 
   private variable
     Γ Γ' Δ Δ' Θ Θ' : Context
@@ -21,7 +17,6 @@ module Base where
     𝟙 : Typ
     _⊸_ : Typ → Typ → Typ
     _⊗_ : Typ → Typ → Typ
-    trunc : isSet Typ
 
   data _⊣_ where
     var : A ⊣ (A , ε)
@@ -43,7 +38,7 @@ module Base where
 
   -- Problem: Wie kriegen wir ex heraus?
   flip : ((A ⊗ B) ⊸ (B ⊗ A)) ⊣ ε
-  flip {A} {B} = abs (split var (rename (pair (var {A = B}) (var {A = A})) swap))
+  flip {A} {B} = abs (split var (ex (var {A = B}) (var {A = A})))
 
   norm : (𝟙 ⊗ (𝟙 ⊸ 𝟙)) ⊣ ε
   norm = app flip (pair (abs var) ⊤)
