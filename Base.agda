@@ -1,6 +1,11 @@
 module Base where
 
+  open import Data.Nat using (suc)
   open import Data.Product using (_×_)
+  open import Relation.Binary.PropositionalEquality using (_≡_; sym; cong)
+    renaming (trans to ≡-trans)
+
+  open import Util
 
   data Typ : Set
 
@@ -19,6 +24,8 @@ module Base where
     _⊗_ : Typ → Typ → Typ
 
   data _⊣_ where
+    perm : A ⊣ Γ → Γ ↭ Δ → A ⊣ Δ
+    
     var : A ⊣ (A , ε)
     
     ⊤ : 𝟙 ⊣ ε
@@ -33,12 +40,40 @@ module Base where
     split : (A ⊗ B) ⊣ Γ → C ⊣ (A , B , Δ)
           → C ⊣ (Γ ++ Δ)
 
-  --modus-ponens : ((A ⊸ B) ⊸ (A ⊸ B)) ⊣ ε
-  --modus-ponens = abs (abs (app var var))
+  open Sub {_⊣_}
 
-  -- Problem: Wie kriegen wir ex heraus?
+  rename : A ⊣ Γ → Γ ↭ Δ → A ⊣ Δ
+  rename = perm
+
+  subst : A ⊣ Γ → Γ ~> Δ → A ⊣ Δ
+  subst (perm t p) σ = subst t {!!} where
+    _∙ₛₚ_ : Δ ~> Θ → Γ ↭ Δ → Γ ~> Θ
+    _∙ₛₚ_ {Δ = Δ} {Γ = ε} σ p with empty-list-length {Γ = Δ} (sym (perm-same-len p))
+    ...                          | _≡_.refl = σ
+    _∙ₛₚ_ {Γ = _ , _} σ refl = σ
+    _∙ₛₚ_ {Γ = _ , _} (plus σ t) (prep _ p) = plus (σ ∙ₛₚ p) t
+    --_∙ₛₚ_ {Γ = _ , _} (diff σ t) (prep _ p) = diff (σ ∙ₛₚ p) t
+    _∙ₛₚ_ {Γ = _ , _} (plus (plus σ t) u) (swap _ _ p) = perm (plus (plus (σ ∙ₛₚ p) u) t) {!!}
+    --_∙ₛₚ_ {Γ = _ , _} (plus (diff σ t) u) (swap _ _ p) = {!!}
+    --_∙ₛₚ_ {Γ = _ , _} (diff σ t) (swap _ _ p) = {!!}
+    _∙ₛₚ_ {Γ = _ , _} σ (trans p p') = {!!}
+  subst var (plus null t) = transp {B = _ ⊣_} lemma t where
+    transp : {A : Set} {B : A → Set} {a a' : A} → a ≡ a' → B a → B a'
+    transp _≡_.refl b = b
+    lemma : Γ ≡ Γ ++ ε
+    lemma {ε} = _≡_.refl
+    lemma {_ , _} = cong (_ ,_) lemma
+  subst ⊤ σ = {!!}
+  subst (abs t) σ = {!!}
+  subst (app t t₁) σ = {!!}
+  subst (pair t t₁) σ = {!!}
+  subst (split t t₁) σ = {!!}
+
+  modus-ponens : (((A ⊸ B) ⊗ A) ⊸ B) ⊣ ε
+  modus-ponens = abs (split var (app var var))
+
+  exch₀ : (A , B , Γ) ↭ (B , A , Γ)
+  exch₀ = swap _ _ refl
+
   flip : ((A ⊗ B) ⊸ (B ⊗ A)) ⊣ ε
-  flip {A} {B} = abs (split var (ex (var {A = B}) (var {A = A})))
-
-  norm : (𝟙 ⊗ (𝟙 ⊸ 𝟙)) ⊣ ε
-  norm = app flip (pair (abs var) ⊤)
+  flip = abs (split var (rename (pair var var) exch₀))

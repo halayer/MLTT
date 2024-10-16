@@ -1,31 +1,92 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+--{-# OPTIONS --allow-unsolved-metas #-}
 
 module Trans {Typ : Set} where
 
   open import Agda.Builtin.Sigma using () renaming (_,_ to _×,_)
 
-  open import Data.Empty using () renaming (⊥ to Empty)
-  open import Data.List using (_++_) renaming ([] to ε; _∷_ to _,_) public
-  --import Data.List.Membership.Propositional
+  open import Data.Nat using (suc)
+  open import Data.List using (_++_) using (length)
+    renaming ([] to ε; _∷_ to _,_) public
+  open import Data.Product using (_×_; Σ-syntax; proj₁; proj₂)
+  import Data.List.Membership.Propositional
+  open import Data.List.Relation.Unary.Any using (here; there)
   import Data.List.Relation.Binary.Permutation.Propositional
+  open import Relation.Binary.PropositionalEquality
+    using (_≡_; refl; sym; cong) renaming (trans to ≡-trans)
+
+  open import Util
 
   Context = Data.List.List Typ
 
   private variable
     A B : Typ
-    Γ Γ' Δ Θ : Context
+    Γ Γ' Δ Δ' : Context
 
-  --open Data.List.Membership.Propositional using (_∈_)
-  open Data.List.Relation.Binary.Permutation.Propositional using (_↭_) public
+  open Data.List.Membership.Propositional using (_∈_) public
+  open Data.List.Relation.Binary.Permutation.Propositional
+    using (_↭_; refl; prep; swap; trans) public
 
-  module Sub {_⊣_ : Typ → Context → Set}
-             {var : ∀ {A} → A ⊣ (A , ε)}
-             {ex : ∀ {A B C} → C ⊣ (A , B , Γ) → C ⊣ (B , A , Γ)} where
+  ren : A ∈ Γ → Γ ↭ Δ → A ∈ Δ
+  ren (here refl) _↭_.refl = here refl
+  ren (here refl) (_↭_.prep _ _) = here refl
+  ren (here refl) (_↭_.swap _ _ _) = there (here refl)
+  ren (here refl) (_↭_.trans r r') = ren (ren (here refl) r) r'
+  ren (there e) _↭_.refl = there e
+  ren (there e) (_↭_.prep _ r) = there (ren e r)
+  ren (there (here refl)) (_↭_.swap _ _ _) = here refl
+  ren (there (there e)) (_↭_.swap _ _ r) = there (there (ren e r))
+  ren (there e) (_↭_.trans r r') = ren (ren (there e) r) r'
 
-    rename : A ⊣ Γ → Γ ↭ Δ → A ⊣ Δ
-    rename {A = A} t _↭_.refl = t
-    rename {A = A} t (_↭_.prep x r) = {!!}
-    rename {A = A} t (_↭_.swap x y r) = {!!}
-    rename {A = A} t (_↭_.trans r r') = {!!}
+  module Sub {_⊣_ : Typ → Context → Set} where
 
-    --_~>_ : Context → Context → Set
+    data _~>*_ : Context → Context → Set where
+      null : ε ~>* ε
+      plus : Γ ~>* Δ → A ⊣ Δ' → (A , Γ) ~>* (Δ' ++ Δ)
+      --perm : Γ ~> Δ → Δ ↭ Δ' → Γ ~> Δ'
+
+    _~>_ : Context → Context → Set
+    Γ ~> Δ = Σ[ Δ' ∈ Context ] (Γ ~>* Δ') × (Δ' ↭ Δ)
+
+    private
+
+      ppermₗ* : Γ ~>* Δ → Γ ↭ Γ' → Γ' ~> Δ
+      ppermₗ : Γ ~> Δ → Γ ↭ Γ' → Γ' ~> Δ
+
+      ppermₗ* σ* refl = _ ×, σ* ×, refl
+      ppermₗ* (plus {Δ = Δ} {Δ' = Δ'} σ* t) (prep _ p) =
+        _ ×, plus (proj₁ (proj₂ IH)) t ×, lemma where
+        IH = ppermₗ* σ* p
+        open import Data.List.Relation.Binary.Permutation.Propositional.Properties
+          using (++⁺ˡ)
+        lemma : Δ' ++ proj₁ IH ↭ Δ' ++ Δ
+        lemma = ++⁺ˡ Δ' (proj₂ (proj₂ IH))
+      ppermₗ* (plus {Δ' = Δ''} (plus {Δ = Δ} {Δ' = Δ'} σ* t) u) (swap _ _ p) =
+        _ ×, plus (plus (proj₁ (proj₂ IH)) u) t ×, lemma where
+        IH = ppermₗ* σ* p
+        open import Data.List.Relation.Binary.Permutation.Propositional.Properties
+        lemma : Δ' ++ Δ'' ++ proj₁ IH ↭ Δ'' ++ Δ' ++ Δ
+        lemma = {!!}
+      ppermₗ* σ* (trans p p') = {!!}
+
+      ppermₗ σ refl = σ
+      ppermₗ σ (prep _ p) = {!!}
+      ppermₗ σ (swap _ _ p) = {!!}
+      ppermₗ σ (trans p p') = {!!}
+
+    permₗ : Γ ~> Δ → Γ ↭ Γ' → Γ' ~> Δ
+    permₗ = ppermₗ
+
+    private
+
+      lkp-cod* : Γ ~>* Δ → A ∈ Γ → Context
+      lkp-cod* (plus {Δ' = Δ'} _ _) (here _) = Δ'
+      lkp-cod* (plus σ* _) (there e) = lkp-cod* σ* e
+
+    lkp-cod : Γ ~> Δ → A ∈ Γ → Context
+    lkp-cod (_ ×, σ* ×, p) e = lkp-cod* σ* e
+
+    sub : (e : A ∈ Γ) → (σ : Γ ~> Δ) → A ⊣ (lkp-cod σ e)
+    sub e (_ ×, σ* ×, p) = sub* e σ* where
+      sub* : (e : A ∈ Γ) → (σ* : Γ ~>* Δ) → A ⊣ (lkp-cod* σ* e)
+      sub* (here refl) (plus _ t) = t
+      sub* (there e) (plus σ* _) = sub* e σ*
