@@ -42,16 +42,18 @@ module Trans {Typ : Set} where
     data _~>*_ : Context → Context → Set where
       null : ε ~>* ε
       plus : Γ ~>* Δ → A ⊣ Δ' → (A , Γ) ~>* (Δ' ++ Δ)
-      --perm : Γ ~> Δ → Δ ↭ Δ' → Γ ~> Δ'
 
     _~>_ : Context → Context → Set
     Γ ~> Δ = Σ[ Δ' ∈ Context ] (Γ ~>* Δ') × (Δ' ↭ Δ)
 
+    permᵣ : Γ ~> Δ → Δ ↭ Δ' → Γ ~> Δ'
+    permᵣ (_ ×, σ* ×, p) p' = _ ×, σ* ×, ↭-trans p p' where
+      open import Data.List.Relation.Binary.Permutation.Propositional
+        using (↭-trans)
+
     private
 
       ppermₗ* : Γ ~>* Δ → Γ ↭ Γ' → Γ' ~> Δ
-      ppermₗ : Γ ~> Δ → Γ ↭ Γ' → Γ' ~> Δ
-
       ppermₗ* σ* refl = _ ×, σ* ×, refl
       ppermₗ* (plus {Δ = Δ} {Δ' = Δ'} σ* t) (prep _ p) =
         _ ×, plus (proj₁ (proj₂ IH)) t ×, lemma where
@@ -63,18 +65,31 @@ module Trans {Typ : Set} where
       ppermₗ* (plus {Δ' = Δ''} (plus {Δ = Δ} {Δ' = Δ'} σ* t) u) (swap _ _ p) =
         _ ×, plus (plus (proj₁ (proj₂ IH)) u) t ×, lemma where
         IH = ppermₗ* σ* p
+        open import Data.List.Relation.Binary.Permutation.Propositional
+          using (↭-sym; ↭-trans)
         open import Data.List.Relation.Binary.Permutation.Propositional.Properties
+          using (++⁺ʳ; ++⁺ˡ; ++-assoc; ++-comm)
         lemma : Δ' ++ Δ'' ++ proj₁ IH ↭ Δ'' ++ Δ' ++ Δ
-        lemma = {!!}
-      ppermₗ* σ* (trans p p') = {!!}
-
-      ppermₗ σ refl = σ
-      ppermₗ σ (prep _ p) = {!!}
-      ppermₗ σ (swap _ _ p) = {!!}
-      ppermₗ σ (trans p p') = {!!}
+        lemma = ↭-trans (↭-trans (↭-trans (
+          ↭-sym (++-assoc Δ' Δ'' (proj₁ IH)))
+          (++⁺ʳ (proj₁ IH) (++-comm Δ' Δ'')))
+          (++⁺ˡ (Δ'' ++ Δ') (proj₂ (proj₂ IH))))
+          (++-assoc Δ'' Δ' Δ)
+      ppermₗ* {Δ = Δ} σ* (trans p p') =
+        _ ×, proj₁ (proj₂ IH) ×, lemma where
+        IH' = ppermₗ* σ* p
+        IH = ppermₗ* (proj₁ (proj₂ IH')) p'
+        open import Data.List.Relation.Binary.Permutation.Propositional
+          using (↭-trans)
+        lemma : proj₁ IH ↭ Δ
+        lemma = ↭-trans (proj₂ (proj₂ IH)) (proj₂ (proj₂ IH'))
 
     permₗ : Γ ~> Δ → Γ ↭ Γ' → Γ' ~> Δ
-    permₗ = ppermₗ
+    permₗ (_ ×, σ* ×, p) p' =
+      _ ×, proj₁ (proj₂ σ') ×, ↭-trans (proj₂ (proj₂ σ')) p where
+      σ' = ppermₗ* σ* p'
+      open import Data.List.Relation.Binary.Permutation.Propositional
+        using (↭-trans)
 
     private
 
