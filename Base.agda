@@ -1,3 +1,5 @@
+{-# OPTIONS --without-K #-}
+
 module Base {P : Set} where
 
   open import Data.Nat using (suc)

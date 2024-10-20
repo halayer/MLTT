@@ -1,3 +1,5 @@
+{-# OPTIONS --without-K #-}
+
 module Trans {Typ : Set} where
 
   open import Agda.Builtin.Sigma using () renaming (_,_ to _×,_)
