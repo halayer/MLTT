@@ -1,4 +1,4 @@
-module Base where
+module Base {P : Set} where
 
   open import Data.Nat using (suc)
   open import Data.Product using (_×_) renaming (_,_ to _×,_)
@@ -23,6 +23,7 @@ module Base where
     t t' u u' v v' : A ⊣ Γ
 
   data Typ where
+    ℙ : Typ
     𝟙 : Typ
     _⊸_ : Typ → Typ → Typ
     _⊗_ : Typ → Typ → Typ
@@ -31,6 +32,8 @@ module Base where
     perm : A ⊣ Γ → Γ ↭ Δ → A ⊣ Δ
     
     var : A ⊣ (A , ε)
+
+    a : P → ℙ ⊣ ε
     
     ⊤ : 𝟙 ⊣ ε
     
