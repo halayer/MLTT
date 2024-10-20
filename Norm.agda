@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS #-}
 
 module Norm {P : Set} where
 
@@ -37,8 +37,15 @@ module Norm {P : Set} where
     done : t ↦* t
     step : t ↦ v → u ↦* v → t ↦* v
 
-  ↦cc-det : {A : Typ} {t u v : A ⊣ ε} → t ↦c u → t ↦c v → u ≡ v
-  ↦cc-det {t = app (abs t) (a _)} (λ-β a) c' = {!!}
-  ↦cc-det c c' with generalize₂ {B = _↦c_} c | generalize₂ {B = _↦c_} c'
-  ... | ._ ×, ._ ×, λ-β a | ._ ×, ._ ×, λ-β a = {!!}
-  ... | ._ ×, ._ ×, λ-β ⊤ | ._ ×, ⊤ ×, _ = {!!}
+  ↦cc-det : t ↦c u → t ↦c v → u ≡ v
+  ↦cc-det (λ-β _) (λ-β _) = _≡_.refl
+  ↦cc-det (×-β _ _) (×-β _ _) = _≡_.refl
+
+  ↦c-det : t ↦c u → t ↦ v → u ≡ v
+  ↦c-det c (here c') = ↦cc-det c c'
+  ↦c-det (λ-β _) (ap (here ()))
+  ↦c-det (λ-β a) (ap' (here ()))
+  ↦c-det (λ-β ⊤) (ap' (here ()))
+  ↦c-det (λ-β abs) (ap' (here ()))
+  ↦c-det (λ-β pair) (ap' (here ()))
+  ↦c-det (×-β _ _) (sp (here ()))
