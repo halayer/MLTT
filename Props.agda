@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --allow-unsolved-metas #-}
 
 module Props {P : Set} where
 
@@ -11,6 +11,8 @@ module Props {P : Set} where
     using (++⁺ˡ; ++⁺ʳ; ++-assoc; ++-comm; ↭-length)
   open import Relation.Binary.PropositionalEquality using (_≡_; sym; cong)
     renaming (trans to ≡-trans)
+  import Relation.Binary.PropositionalEquality.Properties
+  open Relation.Binary.PropositionalEquality.Properties.≡-Reasoning
 
   open import Util
   open import Base {P}
@@ -18,10 +20,11 @@ module Props {P : Set} where
   private variable
     A B : Typ
     Γ Γ' Δ Δ' Θ : Context
+    t : A ⊣ Γ
 
   rename : A ⊣ Γ → Γ ↭ Δ → A ⊣ Δ
   rename t refl = t
-  rename = perm
+  rename t = perm t
 
   ~>*-refl : Γ ~>* Γ
   ~>*-refl {ε} = null
@@ -118,6 +121,7 @@ module Props {P : Set} where
     (_ ×, plus pₗ t ×, refl) ×, _ ×, pᵣ ×, refl
 
   ↑ : Γ ~> Δ → (A , Γ) ~> (A , Δ)
+  ↑ (_ ×, σ* ×, refl) = _ ×, plus σ* var ×, refl
   ↑ (_ ×, σ* ×, p) = _ ×, plus σ* var ×, prep _ p
 
   ↑* : Γ ~>* Δ → (A , Γ) ~>* (A , Δ)
@@ -131,7 +135,7 @@ module Props {P : Set} where
 
   subst : A ⊣ Γ → Γ ~> Δ → A ⊣ Δ
   subst* : A ⊣ Γ → Γ ~>* Δ → A ⊣ Δ
-  
+
   subst* (perm t p) σ* = subst t (permₗ* σ* (↭-sym p))
   subst* var (plus null t) = transport {B = _ ⊣_} (sym (++-identityʳ _)) t
   subst* (a x) null = a x
@@ -150,30 +154,10 @@ module Props {P : Set} where
     transport {B = _ ⊣_} (~>*-cod-part {Γ = Γ} σ*)
               (split (subst* t pₗ*) (subst* u (↑* (↑* pᵣ*))))
 
-  subst (perm t p) σ = subst t (permₗ σ (↭-sym p)) where
-    open import Data.List.Relation.Binary.Permutation.Propositional
-      using (↭-sym)
-  subst {Δ = Δ} (a x) (_ ×, null ×, p)
-    with empty-list-length {Γ = Δ} (sym (↭-length p))
-  ... | _≡_.refl = a x
-  subst {Δ = Δ} var (_ ×, plus null t ×, p) =
-    rename t (transport {B = _↭ _} (++-identityʳ _) p)
-  subst {Δ = Δ} ⊤ (_ ×, null ×, p)
-    with empty-list-length {Γ = Δ} (sym (↭-length p))
-  ...  | _≡_.refl = ⊤
-  subst (abs t) σ = abs (subst t (↑ σ))
-  subst {Δ = Θ} (app {Γ = Γ} {Δ} t u) σ = let
-    pₗ ×, pᵣ = ~>-part {Γ = Γ} σ in
-    rename (app (subst t pₗ) (subst u pᵣ))
-           (~>-cod-part {Γ = Γ} σ)
-  subst {Δ = Θ} (pair {Γ = Γ} {Δ} t u) σ = let
-    pₗ ×, pᵣ = ~>-part {Γ = Γ} σ in
-    rename (pair (subst t pₗ) (subst u pᵣ))
-           (~>-cod-part {Γ = Γ} σ)
-  subst (split {Γ = Γ} t u) σ = let
-    pₗ ×, pᵣ = ~>-part {Γ = Γ} σ in
-    rename (split (subst t pₗ) (subst u (↑ (↑ pᵣ))))
-           (~>-cod-part {Γ = Γ} σ)
+  subst t (_ ×, σ* ×, p) = rename (subst* t σ*) p
+
+  subst*-refl : subst* t ~>*-refl ≡ t
+  subst*-refl {t = t} = {!!}
 
   private
 
@@ -182,7 +166,7 @@ module Props {P : Set} where
     ~>**-trans (plus {Δ' = Δ'} σ* t) ρ* = let
       pₗ ×, pᵣ = ~>*-part {Γ = Δ'} ρ* in
       transport {B = _ ~>*_} (~>*-cod-part {Γ = Δ'} ρ*)
-                (plus (~>**-trans σ* pᵣ) (subst t (_ ×, pₗ ×, refl)))
+                (plus (~>**-trans σ* pᵣ) (subst* t pₗ))
 
     ~>*-trans : Γ ~>* Δ → Δ ~> Θ → Γ ~> Θ
     ~>*-trans null (_ ×, null ×, p) = _ ×, null ×, p
@@ -202,5 +186,13 @@ module Props {P : Set} where
     open import Data.List.Relation.Binary.Permutation.Propositional.Properties
       using (++⁺ˡ)
 
+  _∙ss**_ : Δ ~>* Θ → Γ ~>* Δ → Γ ~>* Θ
+  ρ ∙ss** σ = ~>**-trans σ ρ
+
   _∙ss_ : Δ ~> Θ → Γ ~> Δ → Γ ~> Θ
   ρ ∙ss σ = ~>-trans σ ρ
+
+  plus-⟨⟩ : {t : A ⊣ Γ'} {σ* : Γ ~>* Δ} → plus σ* t ≡ ⟨ t ⟩* ∙ss** ↑* σ*
+  plus-⟨⟩ {A} {Γ'} {t = t} {σ* = null}
+    with sym (++-identityʳ Γ') | Data.List.Properties.++-assoc Γ' ε ε | transport {B = _≡ Γ' ++ ε} (Data.List.Properties.++-assoc _ ε ε) (~>*-cod-part {Γ = A , ε} {Δ = ε} ⟨ t ⟩*)
+  ... | p'' | p' | p = {!!}
