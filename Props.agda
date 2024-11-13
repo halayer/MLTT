@@ -1,6 +1,8 @@
-{-# OPTIONS --allow-unsolved-metas --show-implicit #-}
+{-# OPTIONS --rewriting #-} --show-implicit #-}
 
 module Props {P : Set} where
+
+  open import Agda.Builtin.Equality.Rewrite
 
   open import Data.Product using (_×_; proj₁; proj₂; Σ-syntax)
     renaming (_,_ to _×,_)
@@ -10,7 +12,7 @@ module Props {P : Set} where
   open import Data.List.Relation.Binary.Permutation.Propositional.Properties
     using (++⁺ˡ; ++⁺ʳ; ++-assoc; ++-comm; ↭-length)
   open import Relation.Binary.PropositionalEquality using (_≡_; sym; cong)
-    renaming (trans to ≡-trans)
+    renaming (trans to ≡-trans; subst to ≡-subst)
   import Relation.Binary.PropositionalEquality.Properties
   open Relation.Binary.PropositionalEquality.Properties.≡-Reasoning
 
@@ -108,8 +110,7 @@ module Props {P : Set} where
   ~>-cod-partᵣ {Γ = Γ} (_ ×, σ* ×, _) = ~>*-cod-partᵣ {Γ = Γ} σ*
 
   ~>-cod-part {Γ = Γ} (_ ×, σ* ×, p) =
-    transport {B = _↭ _} (sym (~>*-cod-part {Γ = Γ} σ*))
-              p
+    ≡-subst ( _↭ _) (sym (~>*-cod-part {Γ = Γ} σ*)) p
 
   ~>-part : (σ : (Γ ++ Δ) ~> Θ)
           → (Γ ~> (~>-cod-partₗ {Γ = Γ} σ)) ×
@@ -137,22 +138,22 @@ module Props {P : Set} where
   subst* : A ⊣ Γ → Γ ~>* Δ → A ⊣ Δ
 
   subst* (perm t p) σ* = subst t (permₗ* σ* (↭-sym p))
-  subst* var (plus null t) = transport {B = _ ⊣_} (sym (++-identityʳ _)) t
+  subst* var (plus null t) = ≡-subst (_ ⊣_) (sym (++-identityʳ _)) t
   subst* (a x) null = a x
   subst* ⊤ null = ⊤
   subst* (abs t) σ* = abs (subst* t (↑* σ*))
-  subst* (app {Γ = Γ} t u) σ* = let
+  subst* (app {Γ = Γ} t u) σ* rewrite (~>*-cod-part {Γ = Γ} σ*) = let
     pₗ* ×, pᵣ* = ~>*-part {Γ = Γ} σ* in
-    transport {B = _ ⊣_} (~>*-cod-part {Γ = Γ} σ*)
-              (app (subst* t pₗ*) (subst* u pᵣ*))
+    ≡-subst (_ ⊣_) (~>*-cod-part {Γ = Γ} σ*)
+            (app (subst* t pₗ*) (subst* u pᵣ*))
   subst* (pair {Γ = Γ} t u) σ* = let
     pₗ* ×, pᵣ* = ~>*-part {Γ = Γ} σ* in
-    transport {B = _ ⊣_} (~>*-cod-part {Γ = Γ} σ*)
-              (pair (subst* t pₗ*) (subst* u pᵣ*))
+    ≡-subst (_ ⊣_) (~>*-cod-part {Γ = Γ} σ*)
+            (pair (subst* t pₗ*) (subst* u pᵣ*))
   subst* (split {Γ = Γ} t u) σ* = let
     pₗ* ×, pᵣ* = ~>*-part {Γ = Γ} σ* in
-    transport {B = _ ⊣_} (~>*-cod-part {Γ = Γ} σ*)
-              (split (subst* t pₗ*) (subst* u (↑* (↑* pᵣ*))))
+    ≡-subst (_ ⊣_) (~>*-cod-part {Γ = Γ} σ*)
+            (split (subst* t pₗ*) (subst* u (↑* (↑* pᵣ*))))
 
   subst t (_ ×, σ* ×, p) = rename (subst* t σ*) p
 
@@ -163,10 +164,10 @@ module Props {P : Set} where
 
     ~>**-trans : Γ ~>* Δ → Δ ~>* Θ → Γ ~>* Θ
     ~>**-trans null null = null
-    ~>**-trans (plus {Δ' = Δ'} σ* t) ρ* = let
-      pₗ ×, pᵣ = ~>*-part {Γ = Δ'} ρ* in
-      transport {B = _ ~>*_} (~>*-cod-part {Γ = Δ'} ρ*)
-                (plus (~>**-trans σ* pᵣ) (subst* t pₗ))
+    ~>**-trans (plus {Δ' = Δ'} σ* t) ρ@(plus ρ* u) rewrite ~>*-cod-part {Γ = Δ'} ρ = let
+      pₗ ×, pᵣ = ~>*-part {Γ = Δ'} ρ in plus (~>**-trans σ* pᵣ) (subst* t pₗ)
+      --≡-subst (_ ~>*_) (~>*-cod-part {Γ = Δ'} ρ*)
+      --        (plus (~>**-trans σ* pᵣ) (subst* t pₗ))
 
     ~>*-trans : Γ ~>* Δ → Δ ~> Θ → Γ ~> Θ
     ~>*-trans null (_ ×, null ×, p) = _ ×, null ×, p
@@ -177,7 +178,7 @@ module Props {P : Set} where
 
   ~>-trans : Γ ~> Δ → Δ ~> Θ → Γ ~> Θ
   ~>-trans {Δ = Δ} (_ ×, null ×, p) ρ =
-    transport {B = _~> _} (empty-list-length {Γ = Δ} (sym (↭-length p))) ρ
+    ≡-subst (_~> _) (empty-list-length {Γ = Δ} (sym (↭-length p))) ρ
   ~>-trans (_ ×, plus {Δ' = Δ'} σ* t ×, p) ρ@(_ ×, ρ* ×, p') = let
     ρ' = permₗ ρ (↭-sym p)
     pₗ ×, pᵣ = ~>-part {Γ = Δ'} ρ'
@@ -192,11 +193,16 @@ module Props {P : Set} where
   _∙ss_ : Δ ~> Θ → Γ ~> Δ → Γ ~> Θ
   ρ ∙ss σ = ~>-trans σ ρ
 
+  --{-# BUILTIN REWRITE _≡_ #-}
+
   plus-⟨⟩ : {t : A ⊣ Γ'} {σ* : Γ ~>* Δ} → plus σ* t ≡ ⟨ t ⟩* ∙ss** ↑* σ*
   plus-⟨⟩ {A} {ε} {t = t} {null} = _≡_.refl
-  plus-⟨⟩ {A} {B , Γ'} {t = t} {null} with ~>**-trans null null | sym (cong (B ,_) (++-identityʳ Γ'))
-  ... | null | p = ≡-trans (cong (plus null) (sym (transport-lemma {B = A ⊣_} {ba = t} p))) {!!}
-  plus-⟨⟩ {A} {B , Γ'} {t = t} {null} = ≡-trans {!!} (transport {B = plus null t ≡_} {!!} (sym (transport-lemma {B = (A , ε) ~>*_} _≡_.refl)))
+  plus-⟨⟩ {A} {B , Γ'} {t = t} {null} = let
+    _ = _ in
+    {!!}
+  --plus-⟨⟩ {A} {B , Γ'} {t = t} {null} with ~>**-trans null null | sym (cong (B ,_) (++-identityʳ Γ'))
+  --... | null | p = ≡-trans (cong (plus null) (sym (transport-lemma {B = A ⊣_} {ba = t} p))) {!!}
+  --plus-⟨⟩ {A} {B , Γ'} {t = t} {null} = ≡-trans {!!} (transport {B = plus null t ≡_} {!!} (sym (transport-lemma {B = (A , ε) ~>*_} _≡_.refl)))
   -- transport
   -- (≡-trans
   --   (cong (_,_ B)
