@@ -164,8 +164,21 @@ module Props {P : Set} where
 
     ~>**-trans : Γ ~>* Δ → Δ ~>* Θ → Γ ~>* Θ
     ~>**-trans null null = null
-    ~>**-trans (plus {Δ' = Δ'} σ* t) ρ@(plus ρ* u) rewrite ~>*-cod-part {Γ = Δ'} ρ = let
-      pₗ ×, pᵣ = ~>*-part {Γ = Δ'} ρ in plus (~>**-trans σ* pᵣ) (subst* t pₗ)
+    ~>**-trans (plus {Δ = ε} {Δ' = ε} σ* t) null = plus σ* t
+    ~>**-trans (plus {Δ = _ , _} {Δ' = ε} σ* t) ρ*@(plus _ _) = plus (~>**-trans σ* ρ*) t
+    ~>**-trans (plus {Δ = ε} {Δ' = x , xs} σ* t) (plus {Δ = ε} {Δ' = ε} ρ* u)
+      with xs ++ ε | ++-identityʳ xs
+    ... | .xs | _≡_.refl = plus σ* (subst* t (plus ρ* u))
+    ~>**-trans (plus {Δ = ε} {Δ' = _ , _} σ* t) (plus {Δ = Δ} {Δ' = Δ'} ρ* u) = plus {Δ = Δ} {Δ' = Δ'} {!!} {!!}
+    ~>**-trans (plus {Δ = _ , _} {Δ' = _ , _} σ* t) (plus {Δ = Δ} {Δ' = Δ'} ρ* u) = {!!}
+    --~>**-trans {Γ = _ , _} (plus {Δ' = _ , _} σ* t) ρ* = {!!}
+    ~>**-trans {Θ = ε} (plus {Δ = ε} {Δ' = ε} σ* t) null = plus σ* t
+    --~>**-trans {Θ = ε} σ@(plus {Δ = B , ε} {Δ' = ε} σ* t) (plus {Δ = ε} {Δ' = ε} ρ* u) = {!!} --(plus {Δ = B , Δ} {Δ' = ε} ρ* u) = {!!}
+    --~>**-trans {Θ = _ , Θ} (plus {Δ' = Δ'} σ* t) ρ* = {!!}
+      --with ~>*-cod-partₗ {Γ = Δ'} ρ* ++ ~>*-cod-partᵣ {Γ = Δ'} ρ* | ~>*-cod-part {Γ = Δ'} ρ*
+    --... | ._ | p = let pₗ ×, pᵣ = ~>*-part {Γ = Δ'} ρ* in {!!} --plus (~>**-trans σ* pᵣ) (subst* t pₗ)
+    --~>**-trans (plus {Δ' = Δ'} σ* t) ρ* rewrite ~>*-cod-part {Γ = Δ'} ρ* = let
+    --  pₗ ×, pᵣ = ~>*-part {Γ = Δ'} ρ* in plus (~>**-trans σ* pᵣ) (subst* t pₗ)
       --≡-subst (_ ~>*_) (~>*-cod-part {Γ = Δ'} ρ*)
       --        (plus (~>**-trans σ* pᵣ) (subst* t pₗ))
 
@@ -196,7 +209,7 @@ module Props {P : Set} where
   --{-# BUILTIN REWRITE _≡_ #-}
 
   plus-⟨⟩ : {t : A ⊣ Γ'} {σ* : Γ ~>* Δ} → plus σ* t ≡ ⟨ t ⟩* ∙ss** ↑* σ*
-  plus-⟨⟩ {A} {ε} {t = t} {null} = _≡_.refl
+  --plus-⟨⟩ {A} {ε} {t = t} {null} = _≡_.refl
   plus-⟨⟩ {A} {B , Γ'} {t = t} {null} = let
     _ = _ in
     {!!}
